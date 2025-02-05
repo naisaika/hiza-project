@@ -74,26 +74,27 @@ export const Pool = () => {
                 ctx.fill();
             });
 
-             // 虹の中心点（下部中央）
-            const centerX = canvas.width / (2 * dpr);
-            const centerY = canvas.height / dpr;
+    // 虹の中心を左上に移動
+    const centerX = 500;
+    const centerY = 500;
 
-            // 最大半径とバンドの太さの設定
-            const maxRadius = Math.min(canvas.width / dpr / 2, centerY * 0.9);
-            const bandThickness = 20;
-
-            // 虹の色（外側から内側へ）
-            const colors = ["red", "orange", "yellow", "green", "blue", "indigo", "violet"];
-
-            // 各色ごとに弧を描画
-            colors.forEach((color, index) => {
+        // 虹の太さを細くする
+        const bandThickness = 30; // 細めに調整
+        const colors = ["red", "orange", "yellow", "green", "blue", "indigo", "violet"];
+    
+        // maxRadius を全色表示できるように設定
+        const maxRadius = colors.length * bandThickness * 1.2; // 少し余裕を持たせる
+    
+        // 各色ごとに弧を描画（左上から弧を描く）
+        colors.forEach((color, index) => {
             ctx.beginPath();
             const radius = maxRadius - index * bandThickness;
-            ctx.arc(centerX, centerY, radius, Math.PI, 2 * Math.PI);
+            ctx.arc(centerX, centerY, radius, Math.PI / 2, Math.PI); // 左上から弧を描く
             ctx.lineWidth = bandThickness;
             ctx.strokeStyle = color;
             ctx.stroke();
-            });
+        });
+    
         }, []);
 
   return (
