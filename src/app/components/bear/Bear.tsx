@@ -51,23 +51,30 @@ export const Bear = () => {
     const planeMaterial = new THREE.ShadowMaterial({opacity: 0.5});
     const plane = new THREE.Mesh(planeGeometry, planeMaterial);
     plane.rotation.x = -Math.PI / 2;
-    plane.position.y = -10;
+    plane.position.y = -6;
     plane.receiveShadow = true;
     scene.add(plane);
 
     // **光源の追加**
     const light = new THREE.DirectionalLight(0xffffff, 0.8);
-    light.position.set(2, 5, 5);
+    light.position.set(0, 15, 10);
     light.castShadow = true;
-    light.position.set(2, 10, 10);
+
     light.shadow.mapSize.width = 2048;
     light.shadow.mapSize.height = 2048;
+
     light.shadow.camera.near = 0.5;
-    light.shadow.camera.far = 100;
-    light.shadow.camera.left = -50;
-    light.shadow.camera.right = 50;
-    light.shadow.camera.top = 50;
-    light.shadow.camera.bottom = -50;
+    light.shadow.camera.far = 50;
+    light.shadow.camera.left = -10;
+    light.shadow.camera.right = 10;
+    light.shadow.camera.top = 10;
+    light.shadow.camera.bottom = -10;
+
+    const target = new THREE.Object3D();
+    target.position.set(0, -5, 0);
+    scene.add(target);
+    light.target = target;
+
     scene.add(light);
 
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
