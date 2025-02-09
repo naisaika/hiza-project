@@ -84,7 +84,7 @@ export const Ripple = () => {
                     alpha: 0.8, 
                     startTime: performance.now()
                 });
-            }, 1500);
+            }, 3000);
 
             // **2秒後に追加**
             setTimeout(() => {
@@ -96,7 +96,7 @@ export const Ripple = () => {
                     alpha: 0.8, 
                     startTime: performance.now()
                 });
-            }, 3000);
+            }, 6000);
         }
 
         function addFixedRipple() {
@@ -104,7 +104,7 @@ export const Ripple = () => {
             fixedPositions.forEach((position, index) => {
               setTimeout(() => {
                 addRippleAt(position.x, position.y);
-              }, index * 1200); // 1つ目は 0ms、2つ目は 1000ms、3つ目は 2000ms、...
+              }, index * 2000); // 1つ目は 0ms、2つ目は 1000ms、3つ目は 2000ms、...
             });
           }
 
@@ -112,7 +112,7 @@ export const Ripple = () => {
         animationFrameId.current = requestAnimationFrame(drawRipples);
 
         // **3秒ごとに固定位置で波紋を追加**
-        const interval = setInterval(addFixedRipple, 3000);
+        const interval = setInterval(addFixedRipple, 1500);
 
         return () => {
             clearInterval(interval);

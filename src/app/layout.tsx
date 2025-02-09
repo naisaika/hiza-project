@@ -5,7 +5,6 @@ import "./globals.css";
 const kaiseiDecol = Kaisei_Decol({
   subsets: ['latin'],
   weight: ['400', '500', '700'],
-  display: 'swap'
 });
 
 export const metadata: Metadata = {
