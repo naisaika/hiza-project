@@ -1,5 +1,44 @@
+@use "../../../../styled/common.module" as *;
+
 .bearSection {
     width: 100vw;
     height: 100vh;
-    background: radial-gradient(#CCFFCB, #398FA5);
+    background: radial-gradient(#CCFFCB, #177087);
+    position: relative;
+}
+
+.text {
+    position: fixed;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    font-size: $size-44;
+    font-weight: bold;
+    color: $white;
+    z-index: 10;
+    text-shadow: 2px 2px 10px rgba(4, 81, 248, 0.8);
+    .arrowContainer {
+        animation: floatUpDown 3s infinite ease-in-out;
+        margin: 8px 0;
+        .arrow {
+            width: 32px;
+            height: 26px;
+            margin: 0 auto;
+            background: #17a2b7;
+            box-shadow: inset 5px 5px 15px rgba(0, 0, 0, 0.4), 0px 10px 30px rgba(255, 165, 0, 0.5);
+            clip-path: polygon(50% 100%, 0 0, 100% 0);
+        }
+    }
+}
+
+/* ふわふわ浮遊アニメーション */
+@keyframes floatUpDown {
+0% {
+    transform: translateY(0px);
+}
+50% {
+    transform: translateY(10px); /* ゆっくりと下がる */
+}
+100% {
+    transform: translateY(0px); /* ゆっくりと上がる */
+}
 }

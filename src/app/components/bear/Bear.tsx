@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import styles from "./Bear.module.scss";
+import { cabinSketch } from "../../layout"; // ✅ Cabin Sketch のフォントをインポート
 
 export const Bear = () => {
   const bearRef = useRef<HTMLDivElement | null>(null);
@@ -15,6 +16,11 @@ export const Bear = () => {
   const raycaster = useRef(new THREE.Raycaster());
   const mouse = useRef(new THREE.Vector2());
   const animationsRef = useRef<THREE.AnimationClip[] | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const textRef = useRef<HTMLDivElement | null>(null);
+  const welcomeTextRef = useRef<HTMLParagraphElement | null>(null);
+
+  const [isModelLoaded, setIsModelLoaded] = useState(false);
 
   useEffect(() => {
     if (!bearRef.current) {
@@ -29,16 +35,19 @@ export const Bear = () => {
     const height = bearRef.current.clientHeight || 600;
 
     const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-    camera.position.set(0, -5, 60);
+    camera.position.set(0, -10, 60);
     camera.lookAt(0, 0, 0); 
+    cameraRef.current = camera;
 
     if (!rendererRef.current) {
-        rendererRef.current = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        rendererRef.current.setSize(width, height);
-        rendererRef.current.setPixelRatio(window.devicePixelRatio);
-        bearRef.current.innerHTML = ""; // **既存の子要素をクリア**
-        bearRef.current.appendChild(rendererRef.current.domElement); // **追加**
+      rendererRef.current = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      rendererRef.current.setSize(width, height);
+      rendererRef.current.setPixelRatio(window.devicePixelRatio);
+    
+      if (bearRef.current) {
+        bearRef.current.appendChild(rendererRef.current.domElement); // **ここで直接追加**
       }
+    }
 
     const renderer = rendererRef.current;
 
@@ -51,24 +60,24 @@ export const Bear = () => {
     const planeMaterial = new THREE.ShadowMaterial({opacity: 0.5});
     const plane = new THREE.Mesh(planeGeometry, planeMaterial);
     plane.rotation.x = -Math.PI / 2;
-    plane.position.y = -6;
+    plane.position.y = -20;
     plane.receiveShadow = true;
     scene.add(plane);
 
     // **光源の追加**
     const light = new THREE.DirectionalLight(0xffffff, 0.8);
-    light.position.set(0, 15, 10);
+    light.position.set(0, 20, 10);
     light.castShadow = true;
 
     light.shadow.mapSize.width = 2048;
     light.shadow.mapSize.height = 2048;
 
     light.shadow.camera.near = 0.5;
-    light.shadow.camera.far = 50;
-    light.shadow.camera.left = -10;
-    light.shadow.camera.right = 10;
-    light.shadow.camera.top = 10;
-    light.shadow.camera.bottom = -10;
+    light.shadow.camera.far = 100;
+    light.shadow.camera.left = -30;
+    light.shadow.camera.right = 30;
+    light.shadow.camera.top = 30;
+    light.shadow.camera.bottom = -30;
 
     const target = new THREE.Object3D();
     target.position.set(0, -5, 0);
@@ -93,6 +102,61 @@ export const Bear = () => {
       modelGroupRef.current.position.set(-screenWidth / 4 / 10, -10, 0);
     };
 
+    const updateTextPosition = () => {
+      if (!textRef.current || !modelRef.current || !cameraRef.current || !bearRef.current) return;
+    
+      const vector = new THREE.Vector3();
+    
+      // ✅ クマの頭の 3D 座標を取得（モデルの中心ではなく頭の中心）
+      modelRef.current.getWorldPosition(vector);
+    
+      // ✅ クマの頭の位置に適切なオフセットを加える
+      const headOffsetY = modelRef.current.scale.y * 22.8; // Y方向の補正
+      vector.y += headOffsetY;
+    
+      // ✅ X方向のズレを補正する
+      const headOffsetX = modelRef.current.scale.x * -1.4; // 右にずれているなら左方向に補正
+      vector.x += headOffsetX;
+    
+      // ✅ 3D座標を 2Dスクリーン座標に変換
+      vector.project(cameraRef.current);
+    
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+    
+      // ✅ Three.js の座標系 (-1 ~ 1) を 画面座標に変換
+      const x = (vector.x * 0.5 + 0.5) * width;
+      const y = (-vector.y * 0.5 + 0.5) * height;
+    
+      // ✅ CSS で正しく位置を更新
+      textRef.current.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`;
+      textRef.current.style.display = "block";
+    };
+
+    const updateWelcomeTextPosition = () => {
+      if (!textRef.current || !modelRef.current || !cameraRef.current || !bearRef.current || !welcomeTextRef.current) return;
+    
+      const vector = new THREE.Vector3();
+      modelRef.current.getWorldPosition(vector);
+    
+      // ✅ クマの反対側に配置
+      const offsetY = modelRef.current.scale.y * 22.5;
+      vector.y += offsetY;
+    
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+    
+      vector.project(cameraRef.current);
+    
+      // ✅ X座標を反転させてクマの反対側にする
+      const x = width - (vector.x * 0.5 + 0.5) * width;
+      const y = (-vector.y * 0.5 + 0.5) * height;
+    
+      // ✅ `useRef` を使って要素を直接操作
+      welcomeTextRef.current.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`;
+      welcomeTextRef.current.style.display = "block";
+    };
+
     // **GLTF モデルの読み込み**
     loader.load(
       "/models/bear.glb",
@@ -101,7 +165,7 @@ export const Bear = () => {
 
         const model = gltf.scene;
         model.scale.set(9, 9, 9);
-        model.position.set(0, -5, 0);
+        model.position.set(0, -10, 0);
         model.rotation.y = Math.PI * 0.116;
 
         modelRef.current = model;
@@ -111,6 +175,12 @@ export const Bear = () => {
         scene.add(modelGroup);
         console.log("Scene after adding model:", scene); 
         modelGroupRef.current = modelGroup;
+        setIsModelLoaded(true);
+
+     
+          updateTextPosition();
+          updateWelcomeTextPosition();
+      
 
         updateModelPosition();
         console.log("Camera Position:", camera.position); // **カメラ位置の確認**
@@ -132,7 +202,7 @@ export const Bear = () => {
         model.traverse((node) => {
           if (node instanceof THREE.Mesh) {
             node.castShadow = true;
-            node.receiveShadow = false;
+            node.receiveShadow = true;
           }
         })
       },
@@ -153,6 +223,8 @@ export const Bear = () => {
       }
       camera.updateProjectionMatrix();
       renderer.render(scene, camera);
+      updateTextPosition();
+      updateWelcomeTextPosition();
     };
     animate();
 
@@ -188,6 +260,8 @@ export const Bear = () => {
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
       updateModelPosition();
+      updateTextPosition();
+      // updateWelcomeTextPosition(); 
     };
     window.addEventListener("resize", handleResize);
 
@@ -198,5 +272,20 @@ export const Bear = () => {
     };
   }, []);
 
-  return <div ref={bearRef} className={styles.bearSection}></div>;
+  return (
+    <>
+      <div ref={bearRef} className={styles.bearSection}>
+      {isModelLoaded && (
+        <div ref={textRef} className={`${styles.text} ${cabinSketch.className}`}>
+          Click Me!
+          <div className={styles.arrowContainer}>
+            <div className={styles.arrow}></div>
+          </div>
+        </div>
+      )}
+    </div>
+        <p ref={welcomeTextRef} className={styles.welcomeText}>ようこそ！</p> 
+    </>
+
+  )
 };
