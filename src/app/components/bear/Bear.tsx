@@ -20,6 +20,11 @@ export const Bear = () => {
   const textRef = useRef<HTMLDivElement | null>(null);
   const welcomeTextRef = useRef<HTMLParagraphElement | null>(null);
 
+  const particlesRef = useRef<THREE.Points | null>(null);
+  const particleMaterialRef = useRef<THREE.ShaderMaterial | null>(null);
+  const clock = useRef(new THREE.Clock());
+
+
   const [isModelLoaded, setIsModelLoaded] = useState(false);
 
   useEffect(() => {
@@ -95,6 +100,50 @@ export const Bear = () => {
     dracoLoader.setDecoderPath("https://www.gstatic.com/draco/versioned/decoders/1.5.6/");
     loader.setDRACOLoader(dracoLoader);
 
+    //パーティクルのセットアップ
+    const numParticles = 100;
+    const particleGeometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(numParticles * 3);
+    const velocities = new Float32Array(numParticles * 3);
+
+    for(let i = 0; i < numParticles; i++) {
+      positions[i * 3] = (Math.random() - 0.5) * 5;
+      positions[i * 3 + 1] = (Math.random() - 0.5) * 5;
+      positions[i * 3 + 2] = (Math.random() - 0.5) * 0.1;
+    }
+
+    particleGeometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    particleGeometry.setAttribute("velocity", new THREE.BufferAttribute(velocities, 3));
+
+    const particleMaterial = new THREE.ShaderMaterial({
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      uniforms: {
+        u_time: { value: 0.0 }
+      },
+      vertexShader: `
+        uniform float u_time;
+        attribute vec3 velocity;
+        void main() {
+          vec3 newPosition = position + velocity * u_time * 5.0;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
+          gl_PointSize = 5.0;
+        }
+      `,
+      fragmentShader: `
+        void main() {
+          gl_FragColor = vec4(1.0, 0.8, 0.5, 0.8);
+        }
+      `
+    });
+
+    const particles = new THREE.Points(particleGeometry, particleMaterial);
+    particles.visible = false;
+    scene.add(particles);
+
+    particlesRef.current = particles;
+    particleMaterialRef.current = particleMaterial;
+
     const updateModelPosition = () => {
       if (!bearRef.current || !modelGroupRef.current) return;
       const maxWidth = 1024;
@@ -148,8 +197,8 @@ export const Bear = () => {
     
       vector.project(cameraRef.current);
     
-      // ✅ X座標を反転させてクマの反対側にする
-      const x = width - (vector.x * 0.5 + 0.5) * width;
+      // ✅ `x` の計算を修正（画面幅の中央を基準に反転）
+      const x = (1 - (vector.x * 0.5 + 0.5)) * width; // **正しく反転**
       const y = (-vector.y * 0.5 + 0.5) * height;
     
       // ✅ `useRef` を使って要素を直接操作
@@ -176,12 +225,8 @@ export const Bear = () => {
         console.log("Scene after adding model:", scene); 
         modelGroupRef.current = modelGroup;
         setIsModelLoaded(true);
-
-     
-          updateTextPosition();
-          updateWelcomeTextPosition();
-      
-
+        updateTextPosition();
+        updateWelcomeTextPosition();
         updateModelPosition();
         console.log("Camera Position:", camera.position); // **カメラ位置の確認**
         console.log("Model Position:", model.position);   // **モデル位置の確認**
@@ -248,6 +293,12 @@ export const Bear = () => {
         action.stop();
         action.play();
       }
+
+      if(particlesRef.current) {
+        particlesRef.current.visible = true;
+        if(!particleMaterialRef.current) return;
+        particleMaterialRef.current.uniforms.u_tile.value = 0;
+      }
     };
     window.addEventListener("click", onClick);
 
@@ -261,7 +312,7 @@ export const Bear = () => {
       camera.updateProjectionMatrix();
       updateModelPosition();
       updateTextPosition();
-      // updateWelcomeTextPosition(); 
+      updateWelcomeTextPosition(); 
     };
     window.addEventListener("resize", handleResize);
 
@@ -275,17 +326,21 @@ export const Bear = () => {
   return (
     <>
       <div ref={bearRef} className={styles.bearSection}>
-      {isModelLoaded && (
-        <div ref={textRef} className={`${styles.text} ${cabinSketch.className}`}>
-          Click Me!
-          <div className={styles.arrowContainer}>
-            <div className={styles.arrow}></div>
+        {isModelLoaded && (
+          <div ref={textRef} className={`${styles.text} ${cabinSketch.className}`}>
+            Click Me!
+            <div className={styles.arrowContainer}>
+              <div className={styles.arrow}></div>
+            </div>
           </div>
-        </div>
-      )}
-    </div>
-        <p ref={welcomeTextRef} className={styles.welcomeText}>ようこそ！</p> 
+        )}
+      </div>
+      <p ref={welcomeTextRef} className={styles.welcomeText}>
+        ようこそ、初めまして。<br/>
+        あなたにお会いできて<br/>
+        とても嬉しいです。<br/>
+        まずは、こちらをどうぞ！
+      </p> 
     </>
-
   )
 };
