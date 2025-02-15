@@ -37,8 +37,7 @@ export const Entrance = () => {
     }
     setTimeout(() => {
       setShowEntrance(false);
-    }, 3000)
-  
+    }, 3000);
   }
 
   return (

@@ -22,8 +22,6 @@ export const Bear = () => {
 
   const particlesRef = useRef<THREE.Points | null>(null);
   const particleMaterialRef = useRef<THREE.ShaderMaterial | null>(null);
-  const clock = useRef(new THREE.Clock());
-
 
   const [isModelLoaded, setIsModelLoaded] = useState(false);
 
@@ -101,15 +99,23 @@ export const Bear = () => {
     loader.setDRACOLoader(dracoLoader);
 
     //パーティクルのセットアップ
-    const numParticles = 100;
+    const numParticles = 150;
     const particleGeometry = new THREE.BufferGeometry();
     const positions = new Float32Array(numParticles * 3);
     const velocities = new Float32Array(numParticles * 3);
+    const spreadSpeed = 2.5;
 
     for(let i = 0; i < numParticles; i++) {
-      positions[i * 3] = (Math.random() - 0.5) * 5;
-      positions[i * 3 + 1] = (Math.random() - 0.5) * 5;
-      positions[i * 3 + 2] = (Math.random() - 0.5) * 0.1;
+      positions[i * 3] = 0;
+      positions[i * 3 + 1] = 0;
+      positions[i * 3 + 2] = 0;
+
+      const angle = Math.random() * Math.PI * 2;
+      const speed = Math.random() * spreadSpeed + 0.5;    
+
+      velocities[i * 3] = Math.cos(angle) * speed;
+      velocities[i * 3 + 1] = (Math.random() - 0.5) * 2.0; // 上下方向のランダム性
+      velocities[i * 3 + 2] = Math.sin(angle) * speed;
     }
 
     particleGeometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
@@ -125,9 +131,9 @@ export const Bear = () => {
         uniform float u_time;
         attribute vec3 velocity;
         void main() {
-          vec3 newPosition = position + velocity * u_time * 5.0;
+          vec3 newPosition = position + velocity * u_time * 8.0;
           gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
-          gl_PointSize = 5.0;
+          gl_PointSize = 6.0;
         }
       `,
       fragmentShader: `
@@ -136,6 +142,17 @@ export const Bear = () => {
         }
       `
     });
+
+    const setParticlesPosition = () => {
+      if (!modelRef.current || !particlesRef.current) return;
+    
+      const boxPosition = new THREE.Vector3();
+      modelRef.current.getWorldPosition(boxPosition);
+    
+      boxPosition.y += 10; // ✅ ボックスの上側から出るように調整
+    
+      particlesRef.current.position.set(boxPosition.x, boxPosition.y, boxPosition.z);
+    };
 
     const particles = new THREE.Points(particleGeometry, particleMaterial);
     particles.visible = false;
@@ -266,6 +283,11 @@ export const Bear = () => {
       if (mixerRef.current) {
         mixerRef.current.update(delta);
       }
+
+      if (particleMaterialRef.current) {
+        particleMaterialRef.current.uniforms.u_time.value += delta * 2.0; // <- パーティクルの更新にも使う
+      }
+
       camera.updateProjectionMatrix();
       renderer.render(scene, camera);
       updateTextPosition();
@@ -273,32 +295,57 @@ export const Bear = () => {
     };
     animate();
 
-    // **クリックイベントの処理**
+    const playModelAnimation = () => {
+      if (!mixerRef.current || !animationsRef.current || animationsRef.current.length === 0) {
+        console.warn("playModelAnimation: mixer or animations not available");
+        return;
+      }
+    
+      const action = mixerRef.current.clipAction(animationsRef.current[0]);
+      if (action) {
+        console.log("playModelAnimation: Playing animation");
+    
+        action.reset();  // アニメーションをリセット
+        action.setLoop(THREE.LoopOnce, 1); // ループせず一回だけ再生
+        action.clampWhenFinished = true; // アニメーションが終了したら最後のフレームで止める
+        action.timeScale = 0.5; // ✅ 0.5倍の速度で再生
+        action.play();
+      } else {
+        console.warn("playModelAnimation: Failed to get animation action");
+      }
+    };
+
     const onClick = (event: MouseEvent) => {
       if (!bearRef.current || !modelRef.current || !mixerRef.current || !animationsRef.current) return;
-
-      const rect = bearRef.current.getBoundingClientRect();
+    
+      const rect = renderer.domElement.getBoundingClientRect();
       mouse.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       mouse.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
+    
       raycaster.current.setFromCamera(mouse.current, camera);
-      const intersects = raycaster.current.intersectObject(modelRef.current, true);
-
+      const intersects = raycaster.current.intersectObject(modelRef.current as THREE.Object3D, true);
+    
       if (intersects.length > 0) {
         console.log("Model clicked! Playing animation.");
-        const action = mixerRef.current.clipAction(animationsRef.current[0]);
-        action.weight = 1;
-        action.timeScale = 0.5;
-        action.clampWhenFinished = false;
-        action.stop();
-        action.play();
+        
+        // ✅ クマのアニメーションを再生
+        playModelAnimation();
+      } else {
+        console.warn("No model intersected");
       }
-
-      if(particlesRef.current) {
-        particlesRef.current.visible = true;
-        if(!particleMaterialRef.current) return;
-        particleMaterialRef.current.uniforms.u_tile.value = 0;
-      }
+    
+      // ✅ パーティクルのアニメーションは 300ms 遅らせる
+      setTimeout(() => {
+        if (particlesRef.current && particleMaterialRef.current) {
+          setParticlesPosition();
+          particlesRef.current.visible = true;
+          particleMaterialRef.current.uniforms.u_time.value = 0;
+    
+          setTimeout(() => {
+            if (particlesRef.current) particlesRef.current.visible = false;
+          }, 2000);
+        }
+      }, 600);
     };
     window.addEventListener("click", onClick);
 
@@ -337,8 +384,7 @@ export const Bear = () => {
       </div>
       <p ref={welcomeTextRef} className={styles.welcomeText}>
         ようこそ、初めまして。<br/>
-        あなたにお会いできて<br/>
-        とても嬉しいです。<br/>
+        お会いできてとても嬉しいです。<br/>
         まずは、こちらをどうぞ！
       </p> 
     </>
