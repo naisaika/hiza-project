@@ -12,7 +12,6 @@
         font-size: $size-44;
         font-weight: bold;
         color: $white;
-        z-index: 10;
         text-shadow: 2px 2px 10px rgba(4, 81, 248, 0.8);
         .arrowContainer {
             animation: floatUpDown 3s infinite ease-in-out;

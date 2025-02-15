@@ -19,11 +19,29 @@ export const Bear = () => {
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const textRef = useRef<HTMLDivElement | null>(null);
   const welcomeTextRef = useRef<HTMLParagraphElement | null>(null);
+  const text = `ようこそ初めまして。\nお会いできてとても嬉しいです。\nまずは、こちらをどうぞ！`
 
   const particlesRef = useRef<THREE.Points | null>(null);
   const particleMaterialRef = useRef<THREE.ShaderMaterial | null>(null);
 
   const [isModelLoaded, setIsModelLoaded] = useState(false);
+  const [displayText, setDisplayText] = useState("");
+  const [index, setIndex] = useState(0);
+  const [showCursor, setShowCursor] = useState(true);
+
+  useEffect(() => {
+    const speed = 200;
+
+    if(index < text.length) {
+      const timer = setTimeout(() => {
+        setDisplayText((prev) => prev + text[index]);
+        setIndex(index + 1);
+      }, speed);
+      return () => clearTimeout(timer);
+    } else {
+      setShowCursor(false);
+    }
+  }, [index]);
 
   useEffect(() => {
     if (!bearRef.current) {
@@ -37,7 +55,7 @@ export const Bear = () => {
     const width = bearRef.current.clientWidth || 800;
     const height = bearRef.current.clientHeight || 600;
 
-    const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(75, width / height, 0.01, 1000);
     camera.position.set(0, -10, 60);
     camera.lookAt(0, 0, 0); 
     cameraRef.current = camera;
@@ -228,6 +246,12 @@ export const Bear = () => {
       "/models/bear.glb",
       (gltf) => {
         console.log("Model loaded:", gltf);
+        console.log("Loaded animations:", gltf.animations);
+
+        if (gltf.animations.length === 0) {
+          console.warn("No animations found in the loaded model");
+          return;
+        }
 
         const model = gltf.scene;
         model.scale.set(9, 9, 9);
@@ -266,7 +290,10 @@ export const Bear = () => {
             node.castShadow = true;
             node.receiveShadow = true;
           }
-        })
+        });
+        animationsRef.current = gltf.animations;
+        const mixer = new THREE.AnimationMixer(gltf.scene);
+        mixerRef.current = mixer;
       },
       (xhr) => console.log(`Loading: ${(xhr.loaded / xhr.total) * 100}% completed`),
       (error) => console.error("Error loading model:", error)
@@ -279,7 +306,7 @@ export const Bear = () => {
     const animate = () => {
       requestAnimationFrame(animate);
 
-      const delta = clock.getDelta();
+      const delta = Math.min(clock.getDelta(), 0.1);
       if (mixerRef.current) {
         mixerRef.current.update(delta);
       }
@@ -302,6 +329,8 @@ export const Bear = () => {
       }
     
       const action = mixerRef.current.clipAction(animationsRef.current[0]);
+      console.log("Action retrieved:", action);
+
       if (action) {
         console.log("playModelAnimation: Playing animation");
     
@@ -310,6 +339,8 @@ export const Bear = () => {
         action.clampWhenFinished = true; // アニメーションが終了したら最後のフレームで止める
         action.timeScale = 0.5; // ✅ 0.5倍の速度で再生
         action.play();
+
+        cameraRef.current?.updateProjectionMatrix();
       } else {
         console.warn("playModelAnimation: Failed to get animation action");
       }
@@ -323,7 +354,7 @@ export const Bear = () => {
       mouse.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
     
       raycaster.current.setFromCamera(mouse.current, camera);
-      const intersects = raycaster.current.intersectObject(modelRef.current as THREE.Object3D, true);
+      const intersects = raycaster.current.intersectObjects(modelRef.current?.children || [], true);
     
       if (intersects.length > 0) {
         console.log("Model clicked! Playing animation.");
@@ -354,9 +385,13 @@ export const Bear = () => {
       if (!bearRef.current) return;
       const width = bearRef.current.clientWidth || 800;
       const height = bearRef.current.clientHeight || 600;
-      renderer.setSize(width, height);
-      camera.aspect = width / height;
-      camera.updateProjectionMatrix();
+      rendererRef.current?.setSize(width, height);
+
+      if (cameraRef.current) {
+        cameraRef.current.aspect = width / height;
+        cameraRef.current.updateProjectionMatrix(); // ✅ カメラの更新を確実に行う
+        console.log("Camera aspect updated:", cameraRef.current.aspect);
+      }
       updateModelPosition();
       updateTextPosition();
       updateWelcomeTextPosition(); 
@@ -382,10 +417,12 @@ export const Bear = () => {
           </div>
         )}
       </div>
-      <p ref={welcomeTextRef} className={styles.welcomeText}>
-        ようこそ、初めまして。<br/>
-        お会いできてとても嬉しいです。<br/>
-        まずは、こちらをどうぞ！
+      <p ref={welcomeTextRef} className={styles.welcomeText}
+        dangerouslySetInnerHTML={{
+          __html:
+            displayText.replace(/\n/g, "<br />") +
+            (showCursor ? '<span class="cursor">|</span>' : ""),
+        }}>
       </p> 
     </>
   )
