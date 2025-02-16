@@ -28,6 +28,12 @@
     }
 }
 
+.textContainer {
+    position: fixed;
+    max-width: 400px;
+    width: 400px;
+}
+
 .welcomeText {
     position: fixed;
     font-size: 24px;
@@ -35,17 +41,60 @@
     max-width: 400px; // ✅ 横幅を固定
     overflow: hidden; 
     margin-top: 120px;
+    line-height: 2;
+}
+
+.nextBtn {
+    all: unset; // デフォルトスタイルをリセット
+    font-family: 'Kaisei Decol', serif;
+    position: fixed;
+    transform: translateX(-50%);
+    margin-top: 280px;
+    max-width: 400px;
+    border-radius: 50px;
+    background-color: $white-30;
+    font-size: $size-24;
+    color: $brown;
+    border: solid 1px $brown;
+    padding: 8px 32px;
+    display: flex;
+    gap: 16px;
+    cursor: pointer;
+    opacity: 0;
+    transition: all .6s ease;
+    &__mark {
+      font-size: $size-16;
+      margin-top: 8px;
+    }
+    &:hover {
+      background-color: $brown-50;
+      color: $white;
+      transform: translate(-50%, -50%) scale(1.05);
+    }
+    &__visible {
+      animation: fadeInBtn 1.8s ease-out forwards;
+    }
 }
 
 /* ふわふわ浮遊アニメーション */
 @keyframes floatUpDown {
-0% {
-    transform: translateY(0px);
+    0% {
+        transform: translateY(0px);
+    }
+    50% {
+        transform: translateY(10px); /* ゆっくりと下がる */
+    }
+    100% {
+        transform: translateY(0px); /* ゆっくりと上がる */
+    }
 }
-50% {
-    transform: translateY(10px); /* ゆっくりと下がる */
-}
-100% {
-    transform: translateY(0px); /* ゆっくりと上がる */
-}
-}
+
+@keyframes fadeInBtn {
+    0% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+  

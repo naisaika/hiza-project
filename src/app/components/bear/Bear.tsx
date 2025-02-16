@@ -19,7 +19,8 @@ export const Bear = () => {
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const textRef = useRef<HTMLDivElement | null>(null);
   const welcomeTextRef = useRef<HTMLParagraphElement | null>(null);
-  const text = `ようこそ初めまして。\nお会いできてとても嬉しいです。\nまずは、こちらをどうぞ！`
+  const nextBtnRef = useRef<HTMLButtonElement | null>(null);
+  const text = `ようこそ初めまして。\nお会いできてとても嬉しいです。\nまずは、この贈り物をどうぞ！`
 
   const particlesRef = useRef<THREE.Points | null>(null);
   const particleMaterialRef = useRef<THREE.ShaderMaterial | null>(null);
@@ -28,11 +29,12 @@ export const Bear = () => {
   const [displayText, setDisplayText] = useState("");
   const [index, setIndex] = useState(0);
   const [showCursor, setShowCursor] = useState(true);
+  const [showBtn, setShowBtn] = useState(false);
 
   useEffect(() => {
     const speed = 200;
-
-    if(index < text.length) {
+  
+    if (index < text.length) {
       const timer = setTimeout(() => {
         setDisplayText((prev) => prev + text[index]);
         setIndex(index + 1);
@@ -40,8 +42,16 @@ export const Bear = () => {
       return () => clearTimeout(timer);
     } else {
       setShowCursor(false);
+  
+      // ✅ 3秒遅らせてボタンを表示（クリア処理を追加）
+      const buttonTimer = setTimeout(() => {
+        setShowBtn(true);
+      }, 2000);
+  
+      return () => clearTimeout(buttonTimer); // ✅ クリーンアップ処理
     }
   }, [index]);
+  
 
   useEffect(() => {
     if (!bearRef.current) {
@@ -179,6 +189,67 @@ export const Bear = () => {
     particlesRef.current = particles;
     particleMaterialRef.current = particleMaterial;
 
+    const glowGeometry = new THREE.CircleGeometry(50, 64);
+    const glowMaterial = new THREE.ShaderMaterial({
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      uniforms: {
+        u_time: { value: 0.0 },
+        u_resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+        u_spread: { value: 10.0 },
+        u_opacity: { value: 0.0 }
+      },
+      vertexShader: `
+        void main() {
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float u_time;
+        uniform vec2 u_resolution;
+        uniform float u_spread; 
+        uniform float u_opacity;
+
+        void main() {
+          vec2 uv = gl_FragCoord.xy / u_resolution - vec2(0.5);
+          uv.x *= u_resolution.x / u_resolution.y;
+          float distance = length(uv);
+          float glow = exp(-u_spread * distance) * (sin(u_time * 3.0) * 0.5 + 0.5);
+          gl_FragColor = vec4(1.0, 0.8, 0.5, u_opacity * glow);
+        }
+      `
+    });
+
+    const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+    scene.add(glow);
+
+    const updateGlowPosition = () => {
+      if(!modelRef.current) return;
+
+      const boxPosition = new THREE.Vector3();
+      modelRef.current.getWorldPosition(boxPosition);
+
+      glow.position.set(boxPosition.x - 10, boxPosition.y, boxPosition.z - 5);
+    }
+
+    const startGlowEffect = () => {
+      glowMaterial.uniforms.u_opacity.value = 1.0;
+      glowMaterial.needsUpdate = true;
+
+      updateGlowPosition();
+
+      setTimeout(() => {
+        const fadeOut = setInterval(() => {
+          glowMaterial.uniforms.u_opacity.value -= 0.05;
+          if(glowMaterial.uniforms.u_opacity.value <= 0) {
+            clearInterval(fadeOut);
+            glowMaterial.uniforms.u_opacity.value = 0;
+          }
+        }, 50);
+      }, 1000);
+    }
+
     const updateModelPosition = () => {
       if (!bearRef.current || !modelGroupRef.current) return;
       const maxWidth = 1024;
@@ -241,6 +312,29 @@ export const Bear = () => {
       welcomeTextRef.current.style.display = "block";
     };
 
+    const updateNextBtnPosition = () => {
+      if (!textRef.current || !modelRef.current || !cameraRef.current || !bearRef.current || !nextBtnRef.current) return;
+    
+      const vector = new THREE.Vector3();
+      modelRef.current.getWorldPosition(vector);
+    
+      // ✅ クマの反対側に配置
+      const offsetY = modelRef.current.scale.y * 22.5;
+      vector.y += offsetY;
+    
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+    
+      vector.project(cameraRef.current);
+    
+      // ✅ `x` の計算を修正（画面幅の中央を基準に反転）
+      const x = (1 - (vector.x * 0.5 + 0.5)) * width; // **正しく反転**
+      const y = (-vector.y * 0.5 + 0.5) * height;
+
+      nextBtnRef.current.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`;
+      nextBtnRef.current.style.display = "block";
+    }
+
     // **GLTF モデルの読み込み**
     loader.load(
       "/models/bear.glb",
@@ -269,6 +363,7 @@ export const Bear = () => {
         updateTextPosition();
         updateWelcomeTextPosition();
         updateModelPosition();
+        updateNextBtnPosition();
         console.log("Camera Position:", camera.position); // **カメラ位置の確認**
         console.log("Model Position:", model.position);   // **モデル位置の確認**
 
@@ -319,6 +414,7 @@ export const Bear = () => {
       renderer.render(scene, camera);
       updateTextPosition();
       updateWelcomeTextPosition();
+      updateNextBtnPosition();
     };
     animate();
 
@@ -361,22 +457,29 @@ export const Bear = () => {
         
         // ✅ クマのアニメーションを再生
         playModelAnimation();
+        
+         // ✅ 300ms 遅延して光のアニメーションを開始
+        setTimeout(() => {
+          startGlowEffect();
+        }, 800); 
+
+        // ✅ パーティクルのアニメーションは 300ms 遅らせる
+        setTimeout(() => {
+          if (particlesRef.current && particleMaterialRef.current) {
+            setParticlesPosition();
+            particlesRef.current.visible = true;
+            particleMaterialRef.current.uniforms.u_time.value = 0;
+      
+            setTimeout(() => {
+              if (particlesRef.current) particlesRef.current.visible = false;
+            }, 2000);
+          }
+        }, 600);
+
       } else {
         console.warn("No model intersected");
       }
-    
-      // ✅ パーティクルのアニメーションは 300ms 遅らせる
-      setTimeout(() => {
-        if (particlesRef.current && particleMaterialRef.current) {
-          setParticlesPosition();
-          particlesRef.current.visible = true;
-          particleMaterialRef.current.uniforms.u_time.value = 0;
-    
-          setTimeout(() => {
-            if (particlesRef.current) particlesRef.current.visible = false;
-          }, 2000);
-        }
-      }, 600);
+
     };
     window.addEventListener("click", onClick);
 
@@ -395,6 +498,9 @@ export const Bear = () => {
       updateModelPosition();
       updateTextPosition();
       updateWelcomeTextPosition(); 
+      updateNextBtnPosition();
+      glowMaterial.uniforms.u_resolution.value.set(window.innerWidth, window.innerHeight);
+      glowMaterial.needsUpdate = true; // ✅ 追加
     };
     window.addEventListener("resize", handleResize);
 
@@ -417,13 +523,20 @@ export const Bear = () => {
           </div>
         )}
       </div>
-      <p ref={welcomeTextRef} className={styles.welcomeText}
-        dangerouslySetInnerHTML={{
-          __html:
-            displayText.replace(/\n/g, "<br />") +
-            (showCursor ? '<span class="cursor">|</span>' : ""),
-        }}>
-      </p> 
+      <div>
+        <p ref={welcomeTextRef} className={styles.welcomeText}
+          dangerouslySetInnerHTML={{
+            __html:
+              displayText.replace(/\n/g, "<br />") +
+              (showCursor ? '<span class="cursor">|</span>' : ""),
+          }}>
+        </p> 
+        {showBtn && 
+          <button ref={nextBtnRef} type="button" className={`${styles.nextBtn} ${showBtn ? styles.nextBtn__visible : ""}`}>
+            <span className={styles.nextBtn__text}>次の仲間に会う</span>
+            <span className={styles.next__mark}>＞＞＞</span>
+          </button>}
+      </div>
     </>
   )
 };

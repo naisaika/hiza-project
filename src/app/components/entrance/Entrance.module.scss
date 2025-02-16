@@ -17,13 +17,6 @@
     font-size: $size-24;
     border-radius: 30px;
     color: $brown;
-    .cursor {
-      display: inline-block;
-      width: 10px;
-      height: 1em;
-      font-weight: bold;
-      animation: blink 0.6s step-end infinite alternate;
-    }
   }
   .entranceBtn {
     all: unset; // デフォルトスタイルをリセット
@@ -62,9 +55,6 @@
   }
 }
   
-@keyframes blink {
-  50% { opacity: 0; }
-}
 
 @keyframes fadeInBtn {
   0% {
@@ -78,8 +68,10 @@
 @keyframes fadeOutEntrance {
   0% {
     opacity: 1;
+    pointer-events: none;
   }
   100% {
     opacity: 0;
+    pointer-events: none;
   }
 }

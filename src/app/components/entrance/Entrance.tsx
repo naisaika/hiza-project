@@ -58,7 +58,7 @@ export const Entrance = () => {
           onClick={handleClickBtn}
         >
           <span className={styles.entranceBtn__text}>寄り道する</span>
-          <span className={styles.entranceBtn__mark}>＞＞＞</span>
+          <span className={styles.entrance__mark}>＞＞＞</span>
         </button>
       )}
       <Ajisai />
