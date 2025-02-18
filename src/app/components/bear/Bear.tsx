@@ -7,7 +7,7 @@ import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import styles from "./Bear.module.scss";
 import { cabinSketch } from "../../layout"; // ✅ Cabin Sketch のフォントをインポート
 
-export const Bear = () => {
+export const Bear = ({nextComponent}: {nextComponent:() => void}) => {
   const bearRef = useRef<HTMLDivElement | null>(null);
   const modelGroupRef = useRef<THREE.Group | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -42,17 +42,10 @@ export const Bear = () => {
       return () => clearTimeout(timer);
     } else {
       setShowCursor(false);
-  
-      // ✅ 3秒遅らせてボタンを表示（クリア処理を追加）
-      const buttonTimer = setTimeout(() => {
-        setShowBtn(true);
-      }, 2000);
-  
-      return () => clearTimeout(buttonTimer); // ✅ クリーンアップ処理
+      setShowBtn(true);   
     }
   }, [index]);
   
-
   useEffect(() => {
     if (!bearRef.current) {
       console.error("bearRef is null, stopping execution.");
@@ -504,10 +497,56 @@ export const Bear = () => {
     };
     window.addEventListener("resize", handleResize);
 
+    const disposeModel = () => {
+      if (modelRef.current) {
+        
+        scene.remove(modelRef.current); // ✅ 先に削除
+        modelRef.current.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            child.geometry.dispose();
+            if (Array.isArray(child.material)) {
+              child.material.forEach((mat) => {
+                if (mat.map) mat.map.dispose();
+                mat.dispose();
+              });
+            } else {
+              if (child.material.map) child.material.map.dispose();
+              child.material.dispose();
+            }
+          }
+        });
+     
+        modelRef.current = null;
+      }
+    };
+
+    // ✅ ShaderMaterial も確実に dispose する
+    const disposeShaders = () => {
+      if (particleMaterialRef.current) {
+        particleMaterialRef.current.dispose();
+        particleMaterialRef.current = null;
+      }
+    };
+
+    // ✅ WebGL の完全クリーンアップを実行
+// const disposeRenderer = () => {
+//   if (rendererRef.current) {
+//     console.log("Disposing WebGLRenderer...");
+//     rendererRef.current.dispose();
+    
+//     // ✅ すぐに null にするのではなく、次のフレームで null にする
+//     requestAnimationFrame(() => {
+//       rendererRef.current = null;
+//     });
+//   }
+// };
+
     return () => {
       window.removeEventListener("resize", handleResize);
       window.removeEventListener("click", onClick);
-      renderer.dispose();
+      disposeModel();
+      disposeShaders(); // ✅ シェーダーを解放
+      // disposeRenderer();
     };
   }, []);
 
@@ -533,7 +572,7 @@ export const Bear = () => {
         </p> 
         {showBtn && 
           <button ref={nextBtnRef} type="button" className={`${styles.nextBtn} ${showBtn ? styles.nextBtn__visible : ""}`}>
-            <span className={styles.nextBtn__text}>次の仲間に会う</span>
+            <span className={styles.nextBtn__text} onClick={nextComponent}>次の仲間に会う</span>
             <span className={styles.next__mark}>＞＞＞</span>
           </button>}
       </div>
