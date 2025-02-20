@@ -380,8 +380,8 @@ export const Bear = ({nextComponent}: {nextComponent:() => void}) => {
           }
         });
         animationsRef.current = gltf.animations;
-        const mixer = new THREE.AnimationMixer(gltf.scene);
-        mixerRef.current = mixer;
+        // const mixer = new THREE.AnimationMixer(gltf.scene);
+        // mixerRef.current = mixer;
       },
       (xhr) => console.log(`Loading: ${(xhr.loaded / xhr.total) * 100}% completed`),
       (error) => console.error("Error loading model:", error)
